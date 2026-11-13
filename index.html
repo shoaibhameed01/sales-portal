@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#14342b">
+<link rel="manifest" href="manifest.json">
+<title>Sales Portal</title>
+<style>
+  :root{
+    --ink:#14211c; --paper:#f6f1e7; --card:#fffdf8; --forest:#14342b; --leaf:#2f7d5b;
+    --amber:#d98a1f; --rust:#b5452c; --line:#e3dac6; --muted:#6c7a73;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif;padding-bottom:84px}
+  header{background:var(--forest);color:#f6f1e7;padding:18px 18px 14px}
+  header h1{margin:0;font-family:Georgia,"Times New Roman",serif;font-size:22px;font-weight:700;letter-spacing:.2px}
+  header p{margin:4px 0 0;font-size:13px;opacity:.75}
+  main{padding:16px;max-width:760px;margin:0 auto}
+  .view{display:none}.view.active{display:block}
+  nav{position:fixed;bottom:0;left:0;right:0;background:var(--forest);display:flex;z-index:10}
+  nav button{flex:1;background:none;border:0;color:#b9cdc4;padding:14px 4px 16px;font-size:14px;font-family:inherit;border-top:3px solid transparent}
+  nav button.active{color:#fff;border-top-color:var(--amber);font-weight:700}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+  h2{font-family:Georgia,serif;font-size:19px;margin:0 0 12px}
+  label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+  input,select{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;font-size:16px;background:#fff;font-family:inherit;color:var(--ink)}
+  button.primary{width:100%;margin-top:14px;padding:14px;border:0;border-radius:10px;background:var(--leaf);color:#fff;font-size:16px;font-weight:700;font-family:inherit}
+  button.small{padding:7px 11px;border-radius:8px;border:1px solid var(--line);background:#fff;font-size:13px;font-family:inherit;color:var(--ink)}
+  button.danger{color:var(--rust);border-color:#e8c4bb}
+  .row{display:flex;gap:8px;align-items:center}
+  .grow{flex:1}
+  .hero{background:var(--forest);color:#f6f1e7;border-radius:16px;padding:18px;margin-bottom:14px}
+  .hero .big{font-family:Georgia,serif;font-size:36px;font-weight:700;line-height:1.1}
+  .hero .sub{font-size:13px;opacity:.75;margin-top:2px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+  .grid3 div{background:rgba(255,255,255,.08);border-radius:10px;padding:10px}
+  .grid3 b{display:block;font-size:17px}
+  .grid3 span{font-size:11px;opacity:.7}
+  .bar{height:10px;background:#e9e1cf;border-radius:6px;overflow:hidden;margin-top:8px}
+  .bar i{display:block;height:100%;background:var(--leaf);border-radius:6px}
+  .bar i.low{background:var(--rust)}.bar i.mid{background:var(--amber)}
+  .emp-head{display:flex;justify-content:space-between;align-items:baseline}
+  .emp-head strong{font-size:16px}
+  .pct{font-weight:700}
+  .stats{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);margin-top:8px;flex-wrap:wrap;gap:4px}
+  .stats b{color:var(--ink)}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{padding:9px 6px;text-align:left;border-bottom:1px solid var(--line)}
+  th{font-size:12px;color:var(--muted);font-weight:600}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  .empty{color:var(--muted);font-size:14px;padding:8px 0}
+  .toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:20px;font-size:14px;opacity:0;transition:.3s;pointer-events:none;z-index:20}
+  .toast.show{opacity:1}
+  .hint{font-size:12.5px;color:var(--muted);margin-top:8px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Sales Portal</h1>
+  <p id="monthLabel"></p>
+</header>
+<main>
+
+  <!-- DASHBOARD -->
+  <section id="v-dash" class="view active">
+    <div class="card">
+      <div class="row">
+        <div class="grow"><label style="margin-top:0">Month</label><input type="month" id="dashMonth"></div>
+        <button class="small" id="refreshBtn" style="margin-top:18px">Refresh</button>
+      </div>
+    </div>
+    <div class="hero">
+      <div class="sub">Team achieved</div>
+      <div class="big" id="tAch">0</div>
+      <div class="sub" id="tOf">of 0 target</div>
+      <div class="bar"><i id="tBar" style="width:0%"></i></div>
+      <div class="grid3">
+        <div><b id="tRem">0</b><span>Remaining</span></div>
+        <div><b id="tAvg">0</b><span>Per day avg.</span></div>
+        <div><b id="tPct">0%</b><span>Done</span></div>
+      </div>
+    </div>
+    <div id="empCards"></div>
+  </section>
+
+  <!-- ENTRY -->
+  <section id="v-entry" class="view">
+    <div class="card">
+      <h2>New sale entry</h2>
+      <label>Employee</label>
+      <select id="eEmp"></select>
+      <div id="eTargetInfo" class="hint"></div>
+      <label>Date</label>
+      <input type="date" id="eDate">
+      <label>Sales amount</label>
+      <input type="number" id="eAmt" inputmode="decimal" placeholder="0">
+      <button class="primary" id="saveEntry">Save entry</button>
+    </div>
+    <div class="card">
+      <h2>Recent entries</h2>
+      <div id="recent"></div>
+    </div>
+  </section>
+
+  <!-- ADMIN -->
+  <section id="v-admin" class="view">
+    <div class="card" id="lockCard">
+      <h2>Admin login</h2>
+      <label>PIN</label>
+      <input type="password" id="pin" inputmode="numeric" placeholder="Enter PIN">
+      <button class="primary" id="unlock">Unlock</button>
+      <div class="hint">First time? Whatever PIN you type now becomes the admin PIN for everyone using this portal.</div>
+    </div>
+    <div id="adminBody" style="display:none">
+      <div class="card">
+        <h2>Add employee</h2>
+        <label>Name</label>
+        <input type="text" id="aName" placeholder="Employee name">
+        <label>Monthly target</label>
+        <input type="number" id="aTarget" inputmode="decimal" placeholder="0">
+        <button class="primary" id="addEmp">Add employee</button>
+      </div>
+      <div class="card">
+        <h2>Employees and targets</h2>
+        <div id="empList"></div>
+      </div>
+      <div class="card">
+        <h2>All entries (edit or delete)</h2>
+        <label style="margin-top:0">Filter by employee</label>
+        <select id="fEmp"></select>
+        <div id="allEntries" style="margin-top:10px"></div>
+      </div>
+      <div class="card">
+        <h2>Change PIN</h2>
+        <input type="password" id="newPin" inputmode="numeric" placeholder="New PIN (min 4 digits)">
+        <button class="primary" id="changePinBtn">Change PIN</button>
+      </div>
+      <div class="card">
+        <h2>Backup</h2>
+        <div class="row">
+          <button class="small grow" id="exportBtn">Export CSV</button>
+          <button class="small grow" id="lockBtn">Lock admin</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<nav>
+  <button data-v="dash" class="active">Dashboard</button>
+  <button data-v="entry">Entry</button>
+  <button data-v="admin">Admin</button>
+</nav>
+<div class="toast" id="toast"></div>
+
+<script>
+// =====================================================
+//  PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL BETWEEN THE QUOTES BELOW
+// =====================================================
+const API_URL = 'https://script.google.com/macros/s/AKfycbxlVKaLyzt1Yxa2tQKDaLDvd8P8btI99UNY7maaNB3ypsOR2R_YfrZKqrsyT7PeNUuBlA/exec';
+
+// ---------- State ----------
+let db = { employees: [], entries: [] };
+let adminPin = null;       // kept only in memory while admin is unlocked
+let isAdmin = false;
+let loading = false;
+
+// ---------- Helpers ----------
+const $ = id => document.getElementById(id);
+const fmt = n => Math.round(n).toLocaleString('en-US');
+const today = () => { const d = new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
+const thisMonth = () => today().slice(0,7);
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2000); }
+function esc(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function empName(id){ const e=db.employees.find(x=>x.id===id); return e? e.name : '(removed)'; }
+
+// ---------- API ----------
+async function api(payload){
+  if(API_URL.indexOf('PASTE_')===0){ toast('Set API_URL in index.html first'); return {ok:false,error:'API_URL not set'}; }
+  try{
+    // text/plain avoids the CORS preflight that Apps Script cannot answer
+    const r = await fetch(API_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(payload) });
+    return await r.json();
+  }catch(err){
+    toast('No connection. Check internet.');
+    return {ok:false,error:String(err)};
+  }
+}
+async function refresh(silent){
+  if(loading) return;
+  loading = true;
+  const r = await api({action:'getAll'});
+  loading = false;
+  if(r.ok){ db = r.data; localStorage.setItem('salesCache', JSON.stringify(db)); render(); }
+  else if(!silent) toast(r.error||'Could not load');
+}
+function useCache(){
+  try{ const c = JSON.parse(localStorage.getItem('salesCache')); if(c) db = c; }catch(e){}
+}
+function applyResult(r, okMsg){
+  if(!r.ok){ toast(r.error||'Failed'); return false; }
+  if(r.data) { db = r.data; localStorage.setItem('salesCache', JSON.stringify(db)); }
+  if(okMsg) toast(okMsg);
+  render();
+  return true;
+}
+
+// ---------- Navigation ----------
+document.querySelectorAll('nav button').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    $('v-'+b.dataset.v).classList.add('active');
+    render();
+    refresh(true);
+  };
+});
+
+// ---------- Dashboard ----------
+function daysInfo(month){
+  const [y,m] = month.split('-').map(Number);
+  const total = new Date(y,m,0).getDate();
+  const now = thisMonth();
+  let elapsed;
+  if(month < now) elapsed = total;
+  else if(month > now) elapsed = 0;
+  else elapsed = Number(today().slice(8,10));
+  return {total, elapsed};
+}
+function renderDash(){
+  const month = $('dashMonth').value;
+  $('monthLabel').textContent = new Date(month+'-01').toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+  const {total, elapsed} = daysInfo(month);
+  let tT=0, tA=0;
+  const cards = db.employees.map(emp=>{
+    const ach = db.entries.filter(e=>e.empId===emp.id && e.date.startsWith(month)).reduce((s,e)=>s+e.amount,0);
+    const rem = Math.max(emp.target-ach,0);
+    const avg = elapsed>0 ? ach/elapsed : 0;
+    const pct = emp.target>0 ? ach/emp.target*100 : 0;
+    tT+=emp.target; tA+=ach;
+    const cls = pct>=75?'':(pct>=40?'mid':'low');
+    return `<div class="card">
+      <div class="emp-head"><strong>${esc(emp.name)}</strong><span class="pct">${pct.toFixed(0)}%</span></div>
+      <div class="bar"><i class="${cls}" style="width:${Math.min(pct,100)}%"></i></div>
+      <div class="stats"><span>Target <b>${fmt(emp.target)}</b></span><span>Achieved <b>${fmt(ach)}</b></span><span>Remaining <b>${fmt(rem)}</b></span><span>Avg/day <b>${fmt(avg)}</b></span></div>
+    </div>`;
+  }).join('');
+  const tRem = Math.max(tT-tA,0), tPct = tT>0? tA/tT*100:0;
+  $('tAch').textContent = fmt(tA);
+  $('tOf').textContent = 'of '+fmt(tT)+' target';
+  $('tRem').textContent = fmt(tRem);
+  $('tAvg').textContent = fmt(elapsed>0? tA/elapsed:0);
+  $('tPct').textContent = tPct.toFixed(0)+'%';
+  $('tBar').style.width = Math.min(tPct,100)+'%';
+  $('empCards').innerHTML = cards || '<div class="card empty">No employees yet. Open the Admin tab to add your team.</div>';
+}
+$('dashMonth').value = thisMonth();
+$('dashMonth').onchange = renderDash;
+
+// ---------- Entry ----------
+function fillEmpSelect(sel, withAll){
+  const cur = sel.value;
+  sel.innerHTML = (withAll?'<option value="all">All employees</option>':'') +
+    db.employees.map(e=>`<option value="${e.id}">${esc(e.name)}</option>`).join('');
+  if(cur && [...sel.options].some(o=>o.value===cur)) sel.value=cur;
+}
+function renderEntry(){
+  fillEmpSelect($('eEmp'));
+  if(!$('eDate').value) $('eDate').value = today();
+  const emp = db.employees.find(e=>e.id===$('eEmp').value);
+  if(emp){
+    const m = $('eDate').value.slice(0,7);
+    const ach = db.entries.filter(e=>e.empId===emp.id && e.date.startsWith(m)).reduce((s,e)=>s+e.amount,0);
+    $('eTargetInfo').textContent = `Your target: ${fmt(emp.target)}  |  Achieved so far: ${fmt(ach)}  |  Remaining: ${fmt(Math.max(emp.target-ach,0))}`;
+  } else $('eTargetInfo').textContent = 'No employees yet. Ask the admin to add you.';
+  const rows = db.entries.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8).map(e=>
+    `<tr><td>${e.date}</td><td>${esc(empName(e.empId))}</td><td class="num">${fmt(e.amount)}</td></tr>`).join('');
+  $('recent').innerHTML = rows? `<table><tr><th>Date</th><th>Employee</th><th style="text-align:right">Sales</th></tr>${rows}</table>` : '<div class="empty">Nothing entered yet.</div>';
+}
+$('eEmp').onchange = renderEntry;
+$('eDate').onchange = renderEntry;
+$('saveEntry').onclick = async ()=>{
+  const empId = $('eEmp').value, date=$('eDate').value, amount=parseFloat($('eAmt').value);
+  if(!empId){ toast('Pick an employee'); return; }
+  if(!date){ toast('Pick a date'); return; }
+  if(isNaN(amount)||amount<=0){ toast('Enter a valid amount'); return; }
+  $('saveEntry').disabled = true; $('saveEntry').textContent = 'Saving...';
+  const r = await api({action:'addEntry', empId, date, amount});
+  $('saveEntry').disabled = false; $('saveEntry').textContent = 'Save entry';
+  if(applyResult(r,'Entry saved')) $('eAmt').value='';
+};
+
+// ---------- Admin ----------
+$('unlock').onclick = async ()=>{
+  const p = $('pin').value.trim();
+  if(p.length<4){ toast('PIN must be at least 4 digits'); return; }
+  const r = await api({action:'checkPin', pin:p});
+  if(r.ok){ adminPin=p; isAdmin=true; $('pin').value=''; if(r.firstTime) toast('Admin PIN set'); renderAdmin(); }
+  else toast(r.error||'Wrong PIN');
+};
+$('lockBtn').onclick = ()=>{ isAdmin=false; adminPin=null; renderAdmin(); };
+$('addEmp').onclick = async ()=>{
+  const name=$('aName').value.trim(), target=parseFloat($('aTarget').value);
+  if(!name){ toast('Enter a name'); return; }
+  if(isNaN(target)||target<0){ toast('Enter a target'); return; }
+  const r = await api({action:'addEmployee', pin:adminPin, name, target});
+  if(applyResult(r,'Employee added')){ $('aName').value=''; $('aTarget').value=''; }
+};
+$('changePinBtn').onclick = async ()=>{
+  const np = $('newPin').value.trim();
+  if(np.length<4){ toast('PIN must be at least 4 digits'); return; }
+  const r = await api({action:'changePin', pin:adminPin, newPin:np});
+  if(r.ok){ adminPin=np; $('newPin').value=''; toast('PIN changed'); } else toast(r.error||'Failed');
+};
+function renderAdmin(){
+  $('lockCard').style.display = isAdmin?'none':'block';
+  $('adminBody').style.display = isAdmin?'block':'none';
+  if(!isAdmin) return;
+  $('empList').innerHTML = db.employees.map(e=>`
+    <div class="row" style="margin-bottom:10px">
+      <input class="grow" value="${esc(e.name)}" data-name="${e.id}">
+      <input style="width:100px" type="number" inputmode="decimal" value="${e.target}" data-target="${e.id}">
+      <button class="small" data-saveemp="${e.id}">Save</button>
+      <button class="small danger" data-delemp="${e.id}">X</button>
+    </div>`).join('') || '<div class="empty">No employees yet.</div>';
+  fillEmpSelect($('fEmp'), true);
+  renderAllEntries();
+}
+$('empList').onclick = async ev=>{
+  const sid = ev.target.dataset.saveemp, did = ev.target.dataset.delemp;
+  if(sid){
+    const n=document.querySelector(`[data-name="${sid}"]`).value.trim();
+    const t=parseFloat(document.querySelector(`[data-target="${sid}"]`).value);
+    if(!n||isNaN(t)){ toast('Invalid values'); return; }
+    applyResult(await api({action:'updateEmployee', pin:adminPin, id:sid, name:n, target:t}),'Updated');
+  }
+  if(did && confirm('Delete this employee and all their entries?')){
+    applyResult(await api({action:'deleteEmployee', pin:adminPin, id:did}),'Deleted');
+  }
+};
+$('fEmp').onchange = renderAllEntries;
+function renderAllEntries(){
+  const f=$('fEmp').value;
+  const list=db.entries.filter(e=>f==='all'||e.empId===f).sort((a,b)=>b.date.localeCompare(a.date));
+  $('allEntries').innerHTML = list.map(e=>`
+    <div class="row" style="margin-bottom:8px">
+      <input type="date" style="width:140px;padding:8px" value="${e.date}" data-edate="${e.id}">
+      <span class="grow" style="font-size:13px">${esc(empName(e.empId))}</span>
+      <input type="number" inputmode="decimal" style="width:90px;padding:8px" value="${e.amount}" data-eamt="${e.id}">
+      <button class="small" data-saveentry="${e.id}">Save</button>
+      <button class="small danger" data-delentry="${e.id}">X</button>
+    </div>`).join('') || '<div class="empty">No entries.</div>';
+}
+$('allEntries').onclick = async ev=>{
+  const sid=ev.target.dataset.saveentry, did=ev.target.dataset.delentry;
+  if(sid){
+    const d=document.querySelector(`[data-edate="${sid}"]`).value;
+    const a=parseFloat(document.querySelector(`[data-eamt="${sid}"]`).value);
+    if(!d||isNaN(a)){ toast('Invalid values'); return; }
+    applyResult(await api({action:'updateEntry', pin:adminPin, id:sid, date:d, amount:a}),'Entry updated');
+  }
+  if(did && confirm('Delete this entry?')){
+    applyResult(await api({action:'deleteEntry', pin:adminPin, id:did}),'Deleted');
+  }
+};
+$('exportBtn').onclick = ()=>{
+  let csv='Date,Employee Name,Sales\n'+db.entries.slice().sort((a,b)=>a.date.localeCompare(b.date))
+    .map(e=>`${e.date},"${empName(e.empId).replace(/"/g,'""')}",${e.amount}`).join('\n');
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download='sales-entries.csv'; a.click();
+};
+$('refreshBtn').onclick = ()=>{ refresh(false); toast('Refreshing...'); };
+
+function render(){ renderDash(); renderEntry(); if($('v-admin').classList.contains('active')) renderAdmin(); }
+useCache();
+render();
+refresh(true);
+setInterval(()=>refresh(true), 60000);   // dashboard auto-updates every minute
+</script>
+<script>if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});}</script>
+</body>
+</html>
